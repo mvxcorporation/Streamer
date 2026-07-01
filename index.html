@@ -140,22 +140,27 @@ function manualConnect() {
   addConsole('✅ Connected to ' + ip + ':' + port, 'recv');
 }
 
-// ---- ADB SHELL (HTTP POST) ----
+// ---- ADB SHELL (HTTP POST with better error handling) ----
 async function adbShell(cmd) {
-  if (!emulatorIP) return null;
-  try {
-    const url = `http://${emulatorIP}:${emulatorPort}/`;
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ cmd: cmd })
-    });
-    const data = await res.json();
-    return data.output || '';
-  } catch(e) {
-    addConsole('⚠️ ADB failed: ' + e.message, 'error');
-    return null;
-  }
+    if (!emulatorIP) return null;
+    try {
+        const url = `http://${emulatorIP}:${emulatorPort}/`;
+        const res = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ cmd: cmd })
+        });
+        const data = await res.json();
+        if (data.success) {
+            return data.output || '';
+        } else {
+            addConsole('⚠️ ADB error: ' + (data.error || 'unknown'), 'error');
+            return null;
+        }
+    } catch(e) {
+        addConsole('⚠️ ADB failed: ' + e.message, 'error');
+        return null;
+    }
 }
 
 // ---- GET GAME PID ----
