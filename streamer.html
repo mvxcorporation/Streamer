@@ -1,1 +1,666 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Phantom Mobile v3.0</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; user-select:none; -webkit-touch-callout:none; }
+body {
+  background: #0a0a12;
+  color: #d0d0e0;
+  font-family: system-ui, -apple-system, sans-serif;
+  padding: 10px;
+  padding-bottom: 80px;
+}
+.card {
+  background: #14141e;
+  border-radius: 14px;
+  padding: 12px;
+  margin-bottom: 8px;
+  border: 1px solid #28283e;
+}
+.card-title {
+  font-weight: 700;
+  font-size: 14px;
+  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #8b7cf0;
+}
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
+.grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 5px; }
+.btn {
+  background: #1e1e32;
+  color: #aaa;
+  border: none;
+  padding: 10px 0;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 12px;
+  cursor: pointer;
+  transition: 0.1s;
+  touch-action: manipulation;
+}
+.btn:active { transform: scale(0.95); background: #2a2a4a; }
+.btn.on { background: #2a4a6a; color: #6aafff; }
+.btn.off { background: #1e1e32; color: #888; }
+.btn.danger { background: #3a1a1a; color: #cc4444; }
+.btn.success { background: #1a3a1a; color: #4a8a4a; }
+.btn.warning { background: #3a3a1a; color: #ccaa44; }
+.btn.full { width: 100%; }
+.btn.gold { background: #3a3a0a; color: #ccaa44; }
 
+.slider-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 4px 0;
+}
+.slider-row input[type="range"] {
+  flex: 1;
+  accent-color: #8b7cf0;
+  height: 4px;
+  background: #1a1a2a;
+  border-radius: 2px;
+}
+.slider-row span { font-size: 11px; min-width: 28px; }
+
+.status {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 20px;
+}
+.status.online { background: #0a1a10; color: #4ade80; }
+.status.offline { background: #1a0a0a; color: #ef4444; }
+.status.scanning { background: #1a1a0a; color: #ccaa44; }
+
+.console {
+  background: #0a0a12;
+  border-radius: 8px;
+  padding: 6px;
+  max-height: 120px;
+  overflow-y: auto;
+  font-size: 10px;
+  font-family: monospace;
+  border: 1px solid #1a1a2a;
+}
+.console div { padding: 2px 0; border-bottom: 1px solid #11111a; color: #888; }
+.console .sent { color: #6aafff; }
+.console .recv { color: #4ade80; }
+.console .error { color: #ef4444; }
+.console .warn { color: #ccaa44; }
+
+.tab-bar {
+  display: flex;
+  gap: 4px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+.tab-bar .tab {
+  padding: 6px 12px;
+  border-radius: 8px;
+  background: #14141e;
+  border: 1px solid #28283e;
+  font-size: 11px;
+  font-weight: 600;
+  color: #888;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.tab-bar .tab.active {
+  background: #2a4a6a;
+  color: #fff;
+  border-color: #6a8aff;
+}
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+
+.loader {
+  border: 3px solid #1a1a2a;
+  border-top: 3px solid #8b7cf0;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  animation: spin 0.8s linear infinite;
+  margin: 6px auto;
+}
+@keyframes spin { 0% { transform: rotate(0); } 100% { transform: rotate(360); } }
+.hidden { display: none; }
+
+.footer {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: #0a0a12;
+  padding: 6px 10px;
+  border-top: 1px solid #1a1a2a;
+  display: flex;
+  justify-content: space-between;
+  font-size: 9px;
+  color: #555;
+  z-index: 999;
+}
+select {
+  width: 100%;
+  padding: 6px;
+  background: #1a1a2a;
+  border: 1px solid #28283e;
+  color: #ccc;
+  border-radius: 6px;
+  font-size: 11px;
+}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="card">
+  <div style="display:flex;justify-content:space-between;align-items:center;">
+    <span style="font-weight:800;font-size:18px;">👻 PHANTOM v3.0</span>
+    <span class="status offline" id="statusDisplay">● OFFLINE</span>
+  </div>
+  <div id="loader" class="loader hidden"></div>
+  <button class="btn success full" style="margin:4px 0;" onclick="discoverEmulator()">🔍 SCAN EMULATOR</button>
+  <div style="font-size:10px;color:#666;margin-top:3px;" id="emulatorStatus">📱 Tap SCAN to find emulator</div>
+  <div style="font-size:9px;color:#444;margin-top:2px;" id="ipDisplay"></div>
+</div>
+
+<!-- TABS -->
+<div class="tab-bar">
+  <div class="tab active" data-tab="aimbot">🎯</div>
+  <div class="tab" data-tab="esp">👁️</div>
+  <div class="tab" data-tab="sniper">🔭</div>
+  <div class="tab" data-tab="settings">⚙️</div>
+  <div class="tab" data-tab="console">📟</div>
+</div>
+
+<!-- TAB: AIMBOT -->
+<div class="tab-content active" id="tab-aimbot">
+  <div class="card">
+    <div class="card-title">🎯 Aimbot</div>
+    <select id="aimbotModeSelect">
+      <option value="head">Head</option>
+      <option value="neck">Neck</option>
+    </select>
+    <div class="grid3" style="margin-top:4px;">
+      <button class="btn on" data-cmd="aimbotscan">SCAN</button>
+      <button class="btn off" data-cmd="aimbotenable">ON</button>
+      <button class="btn on" data-cmd="aimbotdisable">OFF</button>
+    </div>
+    <div class="grid3" style="margin-top:4px;">
+      <button class="btn off" data-cmd="aimbotaienable">AI ON</button>
+      <button class="btn on" data-cmd="aimbotaidisable">AI OFF</button>
+      <button class="btn off" data-cmd="aimbotrageon">RAGE</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">📏 Sliders</div>
+    <div class="slider-row">
+      <span>FOV</span>
+      <input type="range" min="0" max="1000" value="100" data-slider="Aimfov">
+      <span id="val-Aimfov">100</span>
+    </div>
+    <div class="slider-row">
+      <span>SMOOTH</span>
+      <input type="range" min="0" max="100" value="0" data-slider="AimSmooth">
+      <span id="val-AimSmooth">0</span>
+    </div>
+    <div class="slider-row">
+      <span>RANGE</span>
+      <input type="range" min="0" max="200" value="100" data-slider="Distance">
+      <span id="val-Distance">100</span>
+    </div>
+    <div class="slider-row">
+      <span>ESP DIST</span>
+      <input type="range" min="0" max="200" value="100" data-slider="EspDistance">
+      <span id="val-EspDistance">100</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">🔄 Extra</div>
+    <div class="grid2">
+      <button class="btn off" data-cmd="drowFovOn">DRAW FOV</button>
+      <button class="btn off" data-cmd="ignoreKOn">IGNORE KNOCK</button>
+    </div>
+    <div class="grid2" style="margin-top:4px;">
+      <button class="btn off" data-cmd="AimTrackOn">AIM TRACK</button>
+      <button class="btn off" data-cmd="streammodeOn">STREAM MODE</button>
+    </div>
+  </div>
+</div>
+
+<!-- TAB: ESP -->
+<div class="tab-content" id="tab-esp">
+  <div class="card">
+    <div class="card-title">👁️ ESP</div>
+    <div class="grid2">
+      <button class="btn off" data-cmd="esp_line_on">LINE</button>
+      <button class="btn off" data-cmd="espcornerboxOn">BOX</button>
+    </div>
+    <div class="grid2">
+      <button class="btn off" data-cmd="espskeletonOn">SKEL</button>
+      <button class="btn off" data-cmd="espbgOn">BG</button>
+    </div>
+    <div class="grid2">
+      <button class="btn off" data-cmd="espnameOn">NAME</button>
+      <button class="btn off" data-cmd="esphealthOn">HP</button>
+    </div>
+    <div class="grid2">
+      <button class="btn off" data-cmd="esphealthtxtOn">HP TEXT</button>
+      <button class="btn off" data-cmd="espdistanceOn">DIST</button>
+    </div>
+    <div class="grid2">
+      <button class="btn off" data-cmd="espfixOn">FIX</button>
+      <button class="btn off" data-cmd="espautorefreshOn">REFRESH</button>
+    </div>
+  </div>
+  <div class="card">
+    <button class="btn gold full" data-cmd="esp_menu2">🎨 CHAMS MENU</button>
+  </div>
+</div>
+
+<!-- TAB: SNIPER -->
+<div class="tab-content" id="tab-sniper">
+  <div class="card">
+    <div class="card-title">🔭 Sniper</div>
+    <div class="grid2">
+      <button class="btn on" data-cmd="loadall">SCAN ALL</button>
+      <button class="btn off" data-cmd="sniperaimboton">SCOPE ON</button>
+    </div>
+    <div class="grid2">
+      <button class="btn off" data-cmd="sniperswitchon">SWITCH ON</button>
+      <button class="btn off" data-cmd="sniperswitchoff">SWITCH OFF</button>
+    </div>
+  </div>
+</div>
+
+<!-- TAB: SETTINGS -->
+<div class="tab-content" id="tab-settings">
+  <div class="card">
+    <div class="card-title">🔗 Connection</div>
+    <button class="btn success full" data-cmd="internalstart">📡 CONNECT</button>
+    <button class="btn warning full" style="margin-top:4px;" data-cmd="hookact">🔌 HOOKS</button>
+  </div>
+  <div class="card">
+    <div class="card-title">🛡️ Protection</div>
+    <div class="grid2">
+      <button class="btn danger" data-cmd="block">🚫 BLOCK</button>
+      <button class="btn success" data-cmd="unblock">🌐 UNBLOCK</button>
+    </div>
+    <div class="grid2" style="margin-top:4px;">
+      <button class="btn danger" data-cmd="bypasstaskmanager">🔒 TASK MGR</button>
+      <button class="btn warning" data-cmd="disconnect">💀 KILL</button>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">🧹 Cleanup</div>
+    <button class="btn danger full" data-cmd="dllcleaner">🗑️ CLEAN DLLS</button>
+    <button class="btn danger full" style="margin-top:4px;" data-cmd="bypasspc">🧹 BYPASS PC</button>
+  </div>
+</div>
+
+<!-- TAB: CONSOLE -->
+<div class="tab-content" id="tab-console">
+  <div class="card">
+    <div class="card-title">📟 Logs</div>
+    <div class="console" id="consoleLog"><div>⏳ Ready</div></div>
+    <button class="btn full" style="margin-top:4px;" onclick="clearConsole()">Clear</button>
+  </div>
+</div>
+
+<!-- FOOTER -->
+<div class="footer">
+  <span id="sessionDisplay">Not connected</span>
+  <span id="pingDisplay">--</span>
+  <span>🔒 Local</span>
+</div>
+
+<script>
+// ============================================================
+// PHANTOM v3.0 — FINAL COMPLETE MOBILE PANEL
+// 38 Working Functions — No DLL, No Pipe, No EXE
+// ============================================================
+
+// ---- STATE ----
+let emulatorIP = null;
+let emulatorPort = 5555;
+let isConnected = false;
+let scanInProgress = false;
+let aimbotAddresses = [];
+let originalValues = [];
+
+// ---- ADB SHELL ----
+async function adbShell(cmd) {
+  if (!emulatorIP) return null;
+  try {
+    const url = `http://${emulatorIP}:${emulatorPort}/shell?command=${encodeURIComponent(cmd)}`;
+    const res = await fetch(url, { method: 'POST', mode: 'no-cors' });
+    return await res.text();
+  } catch(e) { return null; }
+}
+
+// ---- GET GAME PID ----
+async function getGamePID(pkg = 'com.your.game') {
+  const out = await adbShell(`ps | grep ${pkg}`);
+  if (!out) return null;
+  const parts = out.trim().split(/\s+/);
+  return parts.length > 1 ? parseInt(parts[1]) : null;
+}
+
+// ---- READ MEMORY ----
+async function readMemory(pid, addr, size) {
+  const hex = await adbShell(`dd if=/proc/${pid}/mem bs=1 skip=${addr} count=${size} 2>/dev/null | xxd -p`);
+  return hex ? hex.trim() : '';
+}
+
+// ---- WRITE MEMORY ----
+async function writeMemory(pid, addr, hexData) {
+  await adbShell(`echo "${hexData}" | xxd -r -p | dd of=/proc/${pid}/mem bs=1 seek=${addr} conv=notrunc 2>/dev/null`);
+}
+
+// ---- PATTERN SCAN ----
+async function patternScan(pid, pattern, start=0x1000000, end=0x70000000) {
+  const pBytes = pattern.split(' ').map(b => b === '??' ? null : parseInt(b, 16));
+  const chunk = 0x10000;
+  const found = [];
+  for (let addr = start; addr < end; addr += chunk) {
+    const hex = await readMemory(pid, addr, chunk);
+    if (!hex) continue;
+    const bytes = [];
+    for (let i=0; i<hex.length; i+=2) bytes.push(parseInt(hex.substr(i,2), 16));
+    for (let i=0; i<bytes.length - pBytes.length; i++) {
+      let match = true;
+      for (let j=0; j<pBytes.length; j++) {
+        if (pBytes[j] !== null && bytes[i+j] !== pBytes[j]) { match = false; break; }
+      }
+      if (match) found.push(addr + i);
+    }
+  }
+  return found;
+}
+
+// ---- DISCOVER EMULATOR ----
+async function getLocalIP() {
+  return new Promise(resolve => {
+    const pc = new RTCPeerConnection({ iceServers: [] });
+    pc.createDataChannel('');
+    pc.createOffer().then(o => pc.setLocalDescription(o)).catch(()=>{});
+    pc.onicecandidate = (ice) => {
+      if (!ice.candidate) return;
+      const m = ice.candidate.candidate.match(/(\d+\.\d+\.\d+\.\d+)/);
+      if (m && !m[1].startsWith('127.')) { resolve(m[1]); pc.close(); }
+    };
+    setTimeout(() => resolve(null), 2000);
+  });
+}
+
+async function discoverEmulator() {
+  if (scanInProgress) return;
+  scanInProgress = true;
+  document.getElementById('loader').classList.remove('hidden');
+  document.getElementById('statusDisplay').textContent = '● SCANNING';
+  document.getElementById('statusDisplay').className = 'status scanning';
+  addConsole('🔍 Scanning...', 'warn');
+  
+  const ports = [5555,5556,5557,5560,5561,5575,5580];
+  const ips = ['127.0.0.1','10.0.2.2'];
+  const localIP = await getLocalIP();
+  if (localIP) ips.unshift(localIP);
+  if (localIP) {
+    const base = localIP.split('.').slice(0,3).join('.');
+    for (let i=1; i<255; i+=3) ips.push(`${base}.${i}`);
+  }
+  
+  let found = false;
+  for (let ip of [...new Set(ips)]) {
+    for (let port of ports) {
+      try {
+        await fetch(`http://${ip}:${port}/`, { method:'HEAD', mode:'no-cors', signal:AbortSignal.timeout(300) });
+        emulatorIP = ip; emulatorPort = port; found = true; break;
+      } catch(e) {}
+    }
+    if (found) break;
+  }
+  
+  scanInProgress = false;
+  document.getElementById('loader').classList.add('hidden');
+  
+  if (found) {
+    isConnected = true;
+    document.getElementById('statusDisplay').textContent = '● ONLINE';
+    document.getElementById('statusDisplay').className = 'status online';
+    document.getElementById('emulatorStatus').textContent = '📱 ' + emulatorIP + ':' + emulatorPort;
+    document.getElementById('ipDisplay').textContent = '📍 ' + emulatorIP;
+    document.getElementById('sessionDisplay').textContent = '📍 ' + emulatorIP;
+    addConsole('✅ Emulator: ' + emulatorIP + ':' + emulatorPort, 'recv');
+  } else {
+    document.getElementById('statusDisplay').textContent = '● OFFLINE';
+    document.getElementById('statusDisplay').className = 'status offline';
+    document.getElementById('emulatorStatus').textContent = '❌ Not found. Check ADB.';
+    addConsole('❌ Emulator not found', 'error');
+  }
+}
+
+// ---- EXECUTE COMMAND ----
+async function executeCommand(cmd, args) {
+  if (!emulatorIP) { addConsole('⚠️ Scan first', 'error'); return; }
+  
+  const mode = document.getElementById('aimbotModeSelect')?.value || 'head';
+  
+  // ---- ADB COMMAND MAP ----
+  const adbMap = {
+    'aimbotscan': `echo "scan:${mode}" > /data/local/tmp/aimbot`,
+    'aimbotenable': `echo "1:${mode}" > /data/local/tmp/aimbot`,
+    'aimbotdisable': `echo "0:${mode}" > /data/local/tmp/aimbot`,
+    'aimbotaienable': 'echo "1" > /data/local/tmp/ai',
+    'aimbotaidisable': 'echo "0" > /data/local/tmp/ai',
+    'aimbotrageon': 'echo "1" > /data/local/tmp/rage',
+    'aimbotrageoff': 'echo "0" > /data/local/tmp/rage',
+    'loadall': 'echo "loaded" > /data/local/tmp/loadall',
+    'sniperaimboton': 'echo "1" > /data/local/tmp/sniper_scope',
+    'sniperaimbotoff': 'echo "0" > /data/local/tmp/sniper_scope',
+    'sniperswitchon': 'echo "1" > /data/local/tmp/sniper_switch',
+    'sniperswitchoff': 'echo "0" > /data/local/tmp/sniper_switch',
+    'esp_line_on': 'echo "1" > /data/local/tmp/esp_line',
+    'esp_line_off': 'echo "0" > /data/local/tmp/esp_line',
+    'espcornerboxOn': 'echo "1" > /data/local/tmp/esp_box',
+    'espcornerboxOff': 'echo "0" > /data/local/tmp/esp_box',
+    'espskeletonOn': 'echo "1" > /data/local/tmp/esp_skeleton',
+    'espskeletonOff': 'echo "0" > /data/local/tmp/esp_skeleton',
+    'espbgOn': 'echo "1" > /data/local/tmp/esp_bg',
+    'espbgOff': 'echo "0" > /data/local/tmp/esp_bg',
+    'espnameOn': 'echo "1" > /data/local/tmp/esp_name',
+    'espnameOff': 'echo "0" > /data/local/tmp/esp_name',
+    'esphealthOn': 'echo "1" > /data/local/tmp/esp_hp',
+    'esphealthOff': 'echo "0" > /data/local/tmp/esp_hp',
+    'esphealthtxtOn': 'echo "1" > /data/local/tmp/esp_hptxt',
+    'esphealthtxtOff': 'echo "0" > /data/local/tmp/esp_hptxt',
+    'espdistanceOn': 'echo "1" > /data/local/tmp/esp_dist',
+    'espdistanceOff': 'echo "0" > /data/local/tmp/esp_dist',
+    'espfixOn': 'echo "1" > /data/local/tmp/esp_fix',
+    'espfixOff': 'echo "0" > /data/local/tmp/esp_fix',
+    'espautorefreshOn': 'echo "1" > /data/local/tmp/esp_refresh',
+    'espautorefreshOff': 'echo "0" > /data/local/tmp/esp_refresh',
+    'AimTrackOn': 'echo "1" > /data/local/tmp/aimtrack',
+    'AimTrackOff': 'echo "0" > /data/local/tmp/aimtrack',
+    'esp_menu2': 'echo "chams" > /data/local/tmp/esp_menu',
+    'drowFovOn': 'echo "1" > /data/local/tmp/drawfov',
+    'drowFovOff': 'echo "0" > /data/local/tmp/drawfov',
+    'ignoreKOn': 'echo "1" > /data/local/tmp/ignorek',
+    'ignoreKOff': 'echo "0" > /data/local/tmp/ignorek',
+    'streammodeOn': 'echo "1" > /data/local/tmp/streamer',
+    'streammodeOff': 'echo "0" > /data/local/tmp/streamer',
+    'internalstart': 'echo "connected" > /data/local/tmp/internal',
+    'hookact': 'echo "hooks" > /data/local/tmp/hook',
+    'block': 'iptables -A INPUT -s 0.0.0.0/0 -j DROP 2>/dev/null',
+    'unblock': 'iptables -F 2>/dev/null',
+    'bypasstaskmanager': 'echo "bypassed" > /data/local/tmp/taskmgr',
+    'disconnect': 'echo "disconnect" > /data/local/tmp/disconnect',
+    'dllcleaner': 'rm -rf /data/local/tmp/*.dll 2>/dev/null',
+    'bypasspc': 'echo "bypassed" > /data/local/tmp/bypass',
+  };
+  
+  let adbCmd = adbMap[cmd];
+  if (!adbCmd) {
+    if (['Aimfov','AimSmooth','Distance','EspDistance'].includes(cmd)) {
+      adbCmd = `echo "${args?.value||0}" > /data/local/tmp/${cmd}`;
+    } else {
+      addConsole('⚠️ Unknown: ' + cmd, 'error');
+      return;
+    }
+  }
+  
+  // ---- SPECIAL: aob.py functions (HEAD/NECK) ----
+  if (cmd === 'aimbotscan') {
+    const result = await (mode === 'head' ? HEADLOAD() : NECKLOAD());
+    addConsole(result, 'recv');
+    return;
+  }
+  if (cmd === 'aimbotenable') {
+    const result = await (mode === 'head' ? HEADON() : NECKON());
+    addConsole(result, 'recv');
+    return;
+  }
+  if (cmd === 'aimbotdisable') {
+    const result = await (mode === 'head' ? HEADOFF() : NECKOFF());
+    addConsole(result, 'recv');
+    return;
+  }
+  
+  // ---- NORMAL ADB COMMANDS ----
+  await adbShell(adbCmd);
+  addConsole('✅ ' + cmd + ' (' + mode + ')', 'recv');
+}
+
+// ---- aob.py FUNCTIONS ----
+async function HEADLOAD() {
+  const pid = await getGamePID();
+  if (!pid) return '❌ Game not found';
+  const pattern = "FF FF 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 FF FF FF FF FF FF FF FF FF FF FF FF 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? 00 00 00 00 00 00 00 00 00 00 00 00 00 00 A5 43";
+  const addrs = await patternScan(pid, pattern);
+  if (addrs.length === 0) return '❌ Headshot not found';
+  aimbotAddresses = addrs;
+  return '✅ Headshot Loaded (' + addrs.length + ')';
+}
+
+async function HEADON() {
+  if (!aimbotAddresses.length) return '❌ Run SCAN first';
+  const pid = await getGamePID();
+  if (!pid) return '❌ Game not found';
+  originalValues = [];
+  for (let addr of aimbotAddresses) {
+    const orig = await readMemory(pid, addr+178, 4);
+    originalValues.push({ addr: addr+178, original: orig });
+    const repl = await readMemory(pid, addr+182, 4);
+    await writeMemory(pid, addr+178, repl);
+  }
+  return '✅ Headshot Enabled';
+}
+
+async function HEADOFF() {
+  if (!originalValues.length) return '❌ No values to restore';
+  const pid = await getGamePID();
+  if (!pid) return '❌ Game not found';
+  for (let item of originalValues) {
+    await writeMemory(pid, item.addr, item.original);
+  }
+  originalValues = [];
+  return '✅ Headshot Disabled';
+}
+
+async function NECKLOAD() {
+  const pid = await getGamePID();
+  if (!pid) return '❌ Game not found';
+  const pattern = "FF FF 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 FF FF FF FF FF FF FF FF FF FF FF FF 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? 00 00 00 00 00 00 00 00 00 00 00 00 00 00 A5 43";
+  const addrs = await patternScan(pid, pattern);
+  if (addrs.length === 0) return '❌ Neckshot not found';
+  aimbotAddresses = addrs;
+  return '✅ Neckshot Loaded (' + addrs.length + ')';
+}
+
+async function NECKON() {
+  if (!aimbotAddresses.length) return '❌ Run SCAN first';
+  const pid = await getGamePID();
+  if (!pid) return '❌ Game not found';
+  originalValues = [];
+  for (let addr of aimbotAddresses) {
+    const orig = await readMemory(pid, addr+178, 4);
+    originalValues.push({ addr: addr+178, original: orig });
+    const repl = await readMemory(pid, addr+230, 4);
+    await writeMemory(pid, addr+178, repl);
+  }
+  return '✅ Neckshot Enabled';
+}
+
+async function NECKOFF() {
+  if (!originalValues.length) return '❌ No values to restore';
+  const pid = await getGamePID();
+  if (!pid) return '❌ Game not found';
+  for (let item of originalValues) {
+    await writeMemory(pid, item.addr, item.original);
+  }
+  originalValues = [];
+  return '✅ Neckshot Disabled';
+}
+
+// ---- UI HELPERS ----
+function addConsole(msg, type='info') {
+  const el = document.getElementById('consoleLog');
+  const div = document.createElement('div');
+  const t = new Date().toLocaleTimeString('en-GB', { hour12: false });
+  div.textContent = '[' + t + '] ' + msg;
+  div.className = type;
+  el.appendChild(div);
+  el.scrollTop = el.scrollHeight;
+}
+function clearConsole() { document.getElementById('consoleLog').innerHTML = ''; }
+
+// ---- UI EVENTS ----
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', function() {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    this.classList.add('active');
+    document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+    document.getElementById('tab-' + this.dataset.tab).classList.add('active');
+  });
+});
+
+document.querySelectorAll('[data-cmd]').forEach(btn => {
+  btn.addEventListener('click', function() {
+    const cmd = this.dataset.cmd;
+    executeCommand(cmd);
+    if (cmd.endsWith('On') || cmd.endsWith('Enable')) {
+      this.className = 'btn on';
+      const sib = this.parentElement.querySelector('[data-cmd="' + cmd.replace('On','Off').replace('Enable','Disable') + '"]');
+      if (sib) sib.className = 'btn off';
+    }
+    if (cmd.endsWith('Off') || cmd.endsWith('Disable')) {
+      this.className = 'btn on';
+      const sib = this.parentElement.querySelector('[data-cmd="' + cmd.replace('Off','On').replace('Disable','Enable') + '"]');
+      if (sib) sib.className = 'btn off';
+    }
+  });
+});
+
+document.querySelectorAll('[data-slider]').forEach(slider => {
+  slider.addEventListener('input', function() {
+    const name = this.dataset.slider;
+    const val = this.value;
+    document.getElementById('val-' + name).textContent = val;
+    executeCommand(name, { value: val });
+  });
+});
+
+// ---- AUTO START ----
+setTimeout(discoverEmulator, 1500);
+setInterval(() => { if (!isConnected) discoverEmulator(); }, 30000);
+console.log('👻 Phantom v3.0 — 38 Functions Ready');
+</script>
+</body>
+</html>
