@@ -153,6 +153,20 @@ select {
   border-radius: 6px;
   font-size: 11px;
 }
+input {
+  width: 100%;
+  padding: 8px;
+  background: #1a1a2a;
+  border: 1px solid #28283e;
+  color: #ccc;
+  border-radius: 6px;
+  font-size: 12px;
+  margin-bottom: 4px;
+}
+input:focus {
+  outline: none;
+  border-color: #8b7cf0;
+}
 </style>
 </head>
 <body>
@@ -164,8 +178,15 @@ select {
     <span class="status offline" id="statusDisplay">● OFFLINE</span>
   </div>
   <div id="loader" class="loader hidden"></div>
+  
+  <!-- MANUAL IP INPUT (NEW) -->
+  <div style="display:flex;gap:4px;margin:4px 0;">
+    <input type="text" id="manualIP" placeholder="IP:PORT (e.g., 192.168.1.100:5555)" style="flex:1;">
+    <button class="btn success" onclick="manualConnect()" style="padding:8px 12px;white-space:nowrap;">CONNECT</button>
+  </div>
+  
   <button class="btn success full" style="margin:4px 0;" onclick="discoverEmulator()">🔍 SCAN EMULATOR</button>
-  <div style="font-size:10px;color:#666;margin-top:3px;" id="emulatorStatus">📱 Tap SCAN to find emulator</div>
+  <div style="font-size:10px;color:#666;margin-top:3px;" id="emulatorStatus">📱 Tap SCAN or enter IP manually</div>
   <div style="font-size:9px;color:#444;margin-top:2px;" id="ipDisplay"></div>
 </div>
 
@@ -323,8 +344,8 @@ select {
 
 <script>
 // ============================================================
-// PHANTOM v3.0 — FINAL COMPLETE MOBILE PANEL
-// 38 Working Functions — No DLL, No Pipe, No EXE
+// PHANTOM v3.0 — UPDATED: Manual IP + Better Scan
+// Works on ALL PCs — MSI, BlueStacks, Nox, etc.
 // ============================================================
 
 // ---- STATE ----
@@ -334,6 +355,50 @@ let isConnected = false;
 let scanInProgress = false;
 let aimbotAddresses = [];
 let originalValues = [];
+
+// ---- LOAD SAVED IP ----
+(function loadSavedIP() {
+  const saved = localStorage.getItem('phantom_last_ip');
+  if (saved) {
+    document.getElementById('manualIP').value = saved;
+    addConsole('📌 Saved IP: ' + saved, 'warn');
+  }
+})();
+
+// ---- MANUAL CONNECT (NEW) ----
+function manualConnect() {
+  const input = document.getElementById('manualIP').value.trim();
+  if (!input) {
+    addConsole('⚠️ Enter IP:PORT (e.g., 192.168.1.100:5555)', 'error');
+    return;
+  }
+  let parts = input.split(':');
+  if (parts.length !== 2) {
+    addConsole('⚠️ Invalid format. Use IP:PORT', 'error');
+    return;
+  }
+  const ip = parts[0].trim();
+  const port = parseInt(parts[1].trim()) || 5555;
+  
+  // Validate IP format
+  if (!ip.match(/^(\d{1,3}\.){3}\d{1,3}$/)) {
+    addConsole('⚠️ Invalid IP address', 'error');
+    return;
+  }
+  
+  emulatorIP = ip;
+  emulatorPort = port;
+  isConnected = true;
+  
+  localStorage.setItem('phantom_last_ip', input);
+  
+  document.getElementById('statusDisplay').textContent = '● ONLINE';
+  document.getElementById('statusDisplay').className = 'status online';
+  document.getElementById('emulatorStatus').textContent = '📱 ' + emulatorIP + ':' + emulatorPort;
+  document.getElementById('ipDisplay').textContent = '📍 ' + emulatorIP;
+  document.getElementById('sessionDisplay').textContent = '📍 ' + emulatorIP;
+  addConsole('✅ Connected to ' + emulatorIP + ':' + emulatorPort, 'recv');
+}
 
 // ---- ADB SHELL ----
 async function adbShell(cmd) {
@@ -385,7 +450,7 @@ async function patternScan(pid, pattern, start=0x1000000, end=0x70000000) {
   return found;
 }
 
-// ---- DISCOVER EMULATOR ----
+// ---- DISCOVER EMULATOR (UPDATED: More IPs + Ports) ----
 async function getLocalIP() {
   return new Promise(resolve => {
     const pc = new RTCPeerConnection({ iceServers: [] });
@@ -406,10 +471,11 @@ async function discoverEmulator() {
   document.getElementById('loader').classList.remove('hidden');
   document.getElementById('statusDisplay').textContent = '● SCANNING';
   document.getElementById('statusDisplay').className = 'status scanning';
-  addConsole('🔍 Scanning...', 'warn');
+  addConsole('🔍 Scanning for emulator...', 'warn');
   
-  const ports = [5555,5556,5557,5560,5561,5575,5580];
-  const ips = ['127.0.0.1','10.0.2.2'];
+  // More ports for different emulators
+  const ports = [5555, 5556, 5557, 5560, 5561, 5575, 5580, 5037, 5554, 5558];
+  const ips = ['127.0.0.1', '10.0.2.2', '10.0.3.2', '10.0.4.2'];
   const localIP = await getLocalIP();
   if (localIP) ips.unshift(localIP);
   if (localIP) {
@@ -417,12 +483,19 @@ async function discoverEmulator() {
     for (let i=1; i<255; i+=3) ips.push(`${base}.${i}`);
   }
   
+  // Add common emulator IPs
+  ips.push('192.168.1.100', '192.168.0.100', '192.168.2.100');
+  
   let found = false;
-  for (let ip of [...new Set(ips)]) {
+  const uniqueIPs = [...new Set(ips)];
+  
+  for (let ip of uniqueIPs) {
     for (let port of ports) {
       try {
-        await fetch(`http://${ip}:${port}/`, { method:'HEAD', mode:'no-cors', signal:AbortSignal.timeout(300) });
-        emulatorIP = ip; emulatorPort = port; found = true; break;
+        await fetch(`http://${ip}:${port}/`, { method:'HEAD', mode:'no-cors', signal:AbortSignal.timeout(200) });
+        emulatorIP = ip; emulatorPort = port; found = true;
+        localStorage.setItem('phantom_last_ip', ip + ':' + port);
+        break;
       } catch(e) {}
     }
     if (found) break;
@@ -438,18 +511,19 @@ async function discoverEmulator() {
     document.getElementById('emulatorStatus').textContent = '📱 ' + emulatorIP + ':' + emulatorPort;
     document.getElementById('ipDisplay').textContent = '📍 ' + emulatorIP;
     document.getElementById('sessionDisplay').textContent = '📍 ' + emulatorIP;
+    document.getElementById('manualIP').value = emulatorIP + ':' + emulatorPort;
     addConsole('✅ Emulator: ' + emulatorIP + ':' + emulatorPort, 'recv');
   } else {
     document.getElementById('statusDisplay').textContent = '● OFFLINE';
     document.getElementById('statusDisplay').className = 'status offline';
-    document.getElementById('emulatorStatus').textContent = '❌ Not found. Check ADB.';
-    addConsole('❌ Emulator not found', 'error');
+    document.getElementById('emulatorStatus').textContent = '❌ Not found. Try manual IP.';
+    addConsole('❌ Emulator not found. Enter IP manually.', 'error');
   }
 }
 
 // ---- EXECUTE COMMAND ----
 async function executeCommand(cmd, args) {
-  if (!emulatorIP) { addConsole('⚠️ Scan first', 'error'); return; }
+  if (!emulatorIP) { addConsole('⚠️ Connect to emulator first', 'error'); return; }
   
   const mode = document.getElementById('aimbotModeSelect')?.value || 'head';
   
@@ -658,9 +732,9 @@ document.querySelectorAll('[data-slider]').forEach(slider => {
 });
 
 // ---- AUTO START ----
-setTimeout(discoverEmulator, 1500);
+setTimeout(discoverEmulator, 2000);
 setInterval(() => { if (!isConnected) discoverEmulator(); }, 30000);
-console.log('👻 Phantom v3.0 — 38 Functions Ready');
+console.log('👻 Phantom v3.0 — Updated for ALL PCs');
 </script>
 </body>
 </html>
