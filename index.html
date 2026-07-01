@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>PHANTOM PURE</title>
+<title>PHANTOM POWER</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;user-select:none}
 body{background:#08080e;color:#c8c8e0;font-family:system-ui;padding:10px;padding-bottom:80px}
@@ -50,11 +50,11 @@ input:focus,select:focus{border-color:#8b7cf0}
 
 <div class="card">
   <div style="display:flex;justify-content:space-between;align-items:center;">
-    <span style="font-weight:800;font-size:18px;color:#8b7cf0;">◆ PHANTOM PURE</span>
+    <span style="font-weight:800;font-size:18px;color:#8b7cf0;">◆ PHANTOM POWER</span>
     <span class="status offline" id="statusDisplay">● OFFLINE</span>
   </div>
   <div class="connect-row">
-    <input type="text" id="manualIP" placeholder="IP:PORT (e.g., 192.168.1.42:5555)">
+    <input type="text" id="manualIP" placeholder="IP:PORT (e.g., 192.168.1.42:8080)">
     <button class="btn success" onclick="manualConnect()">CONNECT</button>
   </div>
   <button class="btn success full" style="margin:4px 0;" onclick="discoverEmulator()">🔍 SCAN</button>
@@ -111,7 +111,7 @@ input:focus,select:focus{border-color:#8b7cf0}
 
 <script>
 // ============================================================
-// PHANTOM PURE — 100% Website, Zero Install, Zero Trace
+// PHANTOM POWER — No Cloudflare, Pure HTTP
 // ============================================================
 
 let emulatorIP = null;
@@ -127,7 +127,7 @@ function manualConnect() {
   const parts = input.split(':');
   if (parts.length !== 2) { addConsole('⚠️ Use IP:PORT', 'error'); return; }
   const ip = parts[0].trim();
-  const port = parseInt(parts[1].trim()) || 5555;
+  const port = parseInt(parts[1].trim()) || 8080;
   if (!ip.match(/^(\d{1,3}\.){3}\d{1,3}$/)) { addConsole('⚠️ Invalid IP', 'error'); return; }
 
   emulatorIP = ip;
@@ -140,13 +140,18 @@ function manualConnect() {
   addConsole('✅ Connected to ' + ip + ':' + port, 'recv');
 }
 
-// ---- ADB SHELL (Direct HTTP) ----
+// ---- ADB SHELL (HTTP POST) ----
 async function adbShell(cmd) {
   if (!emulatorIP) return null;
   try {
-    const url = `http://${emulatorIP}:${emulatorPort}/shell?command=${encodeURIComponent(cmd)}`;
-    await fetch(url, { method: 'POST', mode: 'no-cors', body: cmd });
-    return 'sent';
+    const url = `http://${emulatorIP}:${emulatorPort}/`;
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ cmd: cmd })
+    });
+    const data = await res.json();
+    return data.output || '';
   } catch(e) {
     addConsole('⚠️ ADB failed: ' + e.message, 'error');
     return null;
@@ -238,7 +243,7 @@ async function HEADOFF() {
   return '✅ Headshot Disabled';
 }
 
-// ---- NECK FUNCTIONS (same as HEAD but offset 230) ----
+// ---- NECK ----
 async function NECKLOAD() {
   const pid = await getGamePID();
   if (!pid) return '❌ Game not found';
@@ -341,7 +346,7 @@ async function getLocalIP() {
   });
 }
 async function discoverEmulator() {
-  const ports = [5555, 5556, 5557, 5560, 5561, 5575, 5580];
+  const ports = [8080, 5555, 5556, 5557];
   const ips = ['127.0.0.1', '10.0.2.2'];
   const localIP = await getLocalIP();
   if (localIP) ips.unshift(localIP);
@@ -409,7 +414,7 @@ document.querySelectorAll('[data-slider]').forEach(slider => {
   });
 });
 setTimeout(discoverEmulator, 1500);
-console.log('👻 PHANTOM PURE — 100% Website');
+console.log('⚡ PHANTOM POWER — No Cloudflare');
 </script>
 </body>
 </html>
